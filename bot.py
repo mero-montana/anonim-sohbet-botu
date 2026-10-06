@@ -4,8 +4,9 @@ from datetime import datetime, timedelta
 import telebot
 from telebot import types
 
-TOKEN = os.getenv("BOT_TOKEN")
-ADMIN_ID = int(os.getenv("ADMIN_ID", "8536869508"))
+
+TOKEN = os.getenv("BOT_TOKEN", "").strip()
+ADMIN_ID = 8536869508
 
 if not TOKEN:
     raise RuntimeError("BOT_TOKEN bulunamadi")
@@ -55,13 +56,17 @@ def get_user(user_id):
         users[user_id] = {
             "age": None,
             "gender": None,
-            "confirmed": False,
+            "confirmed": False
         }
+
     return users[user_id]
 
 
 def is_blocked(a, b):
-    return b in blocked.get(a, set()) or a in blocked.get(b, set())
+    return (
+        b in blocked.get(a, set())
+        or a in blocked.get(b, set())
+    )
 
 
 def remove_from_waiting(user_id):
@@ -74,8 +79,10 @@ def end_match(user_id):
 
     if partner is not None:
         matches.pop(partner, None)
+
         last_matches[user_id] = partner
         last_matches[partner] = user_id
+
         return partner
 
     return None
@@ -84,6 +91,7 @@ def end_match(user_id):
 def add_match(a, b):
     remove_from_waiting(a)
     remove_from_waiting(b)
+
     matches[a] = b
     matches[b] = a
 
@@ -109,23 +117,23 @@ def age_keyboard():
     kb.row(
         types.InlineKeyboardButton(
             "18-20",
-            callback_data="age_18_20",
+            callback_data="age_18_20"
         ),
         types.InlineKeyboardButton(
             "21-25",
-            callback_data="age_21_25",
-        ),
+            callback_data="age_21_25"
+        )
     )
 
     kb.row(
         types.InlineKeyboardButton(
             "26-30",
-            callback_data="age_26_30",
+            callback_data="age_26_30"
         ),
         types.InlineKeyboardButton(
             "31+",
-            callback_data="age_31_plus",
-        ),
+            callback_data="age_31_plus"
+        )
     )
 
     return kb
@@ -137,18 +145,18 @@ def gender_keyboard():
     kb.row(
         types.InlineKeyboardButton(
             "Erkek",
-            callback_data="gender_erkek",
+            callback_data="gender_erkek"
         ),
         types.InlineKeyboardButton(
             "Kadın",
-            callback_data="gender_kadin",
-        ),
+            callback_data="gender_kadin"
+        )
     )
 
     kb.row(
         types.InlineKeyboardButton(
             "Belirtmek istemiyorum",
-            callback_data="gender_none",
+            callback_data="gender_none"
         )
     )
 
@@ -161,7 +169,7 @@ def vip_menu():
     kb.row(
         types.InlineKeyboardButton(
             "500 ⭐ ile 30 Gün VIP",
-            callback_data="buy_vip",
+            callback_data="buy_vip"
         )
     )
 
@@ -174,30 +182,30 @@ def admin_menu():
     kb.row(
         types.InlineKeyboardButton(
             "İstatistik",
-            callback_data="admin_stats",
+            callback_data="admin_stats"
         ),
         types.InlineKeyboardButton(
             "Duyuru",
-            callback_data="admin_announce",
-        ),
+            callback_data="admin_announce"
+        )
     )
 
     kb.row(
         types.InlineKeyboardButton(
             "VIP Ver",
-            callback_data="admin_give_vip",
+            callback_data="admin_give_vip"
         ),
         types.InlineKeyboardButton(
             "Ban",
-            callback_data="admin_ban",
-        ),
+            callback_data="admin_ban"
+        )
     )
 
     kb.row(
         types.InlineKeyboardButton(
             "Ban Aç",
-            callback_data="admin_unban",
-        ),
+            callback_data="admin_unban"
+        )
     )
 
     return kb
@@ -205,6 +213,7 @@ def admin_menu():
 
 def find_partner(user_id):
     me = get_user(user_id)
+
     candidates = list(waiting)
 
     if is_vip(user_id):
@@ -213,10 +222,14 @@ def find_partner(user_id):
         )
 
     for candidate in candidates:
+
         if candidate == user_id:
             continue
 
         if candidate in matches:
+            continue
+
+        if candidate in banned:
             continue
 
         if is_blocked(user_id, candidate):
@@ -224,9 +237,12 @@ def find_partner(user_id):
 
         other = get_user(candidate)
 
-        if me["age"] and other["age"]:
-            if me["age"] != other["age"]:
-                continue
+        if (
+            me["age"]
+            and other["age"]
+            and me["age"] != other["age"]
+        ):
+            continue
 
         return candidate
 
@@ -234,35 +250,37 @@ def find_partner(user_id):
 
 
 def start_matching(user_id):
+
     if user_id in banned:
         bot.send_message(
             user_id,
-            "Hesabın banlı.",
+            "Hesabın banlı."
         )
         return
 
     if user_id in muted:
         bot.send_message(
             user_id,
-            "Susturulmuş durumdasın.",
+            "Susturulmuş durumdasın."
         )
         return
 
     if not get_user(user_id)["confirmed"]:
         bot.send_message(
             user_id,
-            "Önce 18 yaşından büyük olduğunu onayla.",
+            "Önce 18 yaşından büyük olduğunu onayla."
         )
         return
 
     if user_id in matches:
         bot.send_message(
             user_id,
-            "Zaten bir eşleşmen var.",
+            "Zaten bir eşleşmen var."
         )
         return
 
     remove_from_waiting(user_id)
+
     partner = find_partner(user_id)
 
     if partner is None:
@@ -270,41 +288,26 @@ def start_matching(user_id):
 
         bot.send_message(
             user_id,
-            "Eşleşme aranıyor...",
+            "Eşleşme aranıyor..."
         )
+
         return
 
     add_match(user_id, partner)
 
     bot.send_message(
         user_id,
-        "Eşleşme bulundu. Artık anonim konuşabilirsiniz.",
+        "Eşleşme bulundu. Artık anonim konuşabilirsiniz."
     )
 
     bot.send_message(
         partner,
-        "Eşleşme bulundu. Artık anonim konuşabilirsiniz.",
+        "Eşleşme bulundu. Artık anonim konuşabilirsiniz."
     )
 
 
-def send_general_text(sender_id, message_text):
-    for user_id in list(general_chat):
-        if user_id == sender_id:
-            continue
-
-        if user_id in banned or user_id in muted:
-            continue
-
-        try:
-            bot.send_message(
-                user_id,
-                message_text,
-            )
-        except Exception:
-            pass
-
-
 def add_referral(new_user_id, inviter_id):
+
     if new_user_id == inviter_id:
         return
 
@@ -317,40 +320,45 @@ def add_referral(new_user_id, inviter_id):
     referrals[new_user_id] = inviter_id
 
     count = sum(
-        1 for value in referrals.values()
+        1
+        for value in referrals.values()
         if value == inviter_id
     )
 
-    if count >= REFERRAL_REQUIRED:
-        if inviter_id not in referral_rewards:
-            referral_rewards.add(inviter_id)
+    if (
+        count >= REFERRAL_REQUIRED
+        and inviter_id not in referral_rewards
+    ):
+        referral_rewards.add(inviter_id)
 
-            vip_users[inviter_id] = (
-                datetime.now()
-                + timedelta(days=REFERRAL_VIP_DAYS)
+        vip_users[inviter_id] = (
+            datetime.now()
+            + timedelta(days=REFERRAL_VIP_DAYS)
+        )
+
+        try:
+            bot.send_message(
+                inviter_id,
+                "Tebrikler!\n\n"
+                "10 kişi davet ettin.\n"
+                "7 günlük VIP ödülün aktif edildi.",
+                reply_markup=menu(inviter_id)
             )
-
-            try:
-                bot.send_message(
-                    inviter_id,
-                    "Tebrikler!\n\n"
-                    "10 kişi davet ettin.\n"
-                    "7 günlük VIP ödülün aktif edildi.",
-                    reply_markup=menu(inviter_id),
-                )
-            except Exception:
-                pass
+        except Exception:
+            pass
 
 
 def referral_info(user_id):
+
     count = sum(
-        1 for value in referrals.values()
+        1
+        for value in referrals.values()
         if value == user_id
     )
 
     remaining = max(
         0,
-        REFERRAL_REQUIRED - count,
+        REFERRAL_REQUIRED - count
     )
 
     try:
@@ -365,55 +373,63 @@ def referral_info(user_id):
             user_id,
             "DAVET SİSTEMİ\n\n"
             "Arkadaşlarını davet et.\n"
-            "10 yeni kişi bota katılırsa 7 gün VIP kazanırsın.\n\n"
+            "10 yeni kişi katılırsa 7 gün VIP kazanırsın.\n\n"
             f"Davet edilen kişi: {count}\n"
             f"Kalan: {remaining}\n\n"
-            f"Davet linkin:\n{link}",
+            f"Davet linkin:\n{link}"
         )
 
     except Exception as exc:
         bot.send_message(
             user_id,
-            f"Davet linki oluşturulamadı.\n{exc}",
+            f"Davet linki oluşturulamadı.\n{exc}"
         )
 
 
 @bot.message_handler(commands=["start"])
 def start(message):
+
     user_id = message.from_user.id
 
     if user_id in banned:
         bot.send_message(
             user_id,
-            "Hesabın banlı.",
+            "Hesabın banlı."
         )
         return
 
     is_new_user = user_id not in users
+
     referral_id = None
+
     parts = message.text.split()
 
-    if len(parts) > 1:
-        if parts[1].startswith("ref_"):
-            try:
-                referral_id = int(parts[1][4:])
-            except ValueError:
-                referral_id = None
+    if (
+        len(parts) > 1
+        and parts[1].startswith("ref_")
+    ):
+        try:
+            referral_id = int(parts[1][4:])
+        except ValueError:
+            referral_id = None
 
     get_user(user_id)
 
     if is_new_user and referral_id is not None:
         add_referral(
             user_id,
-            referral_id,
+            referral_id
         )
 
     if get_user(user_id)["confirmed"]:
+
         bot.send_message(
             user_id,
-            "Tekrar hoş geldin.\n\nMenüden bir işlem seç.",
-            reply_markup=menu(user_id),
+            "Tekrar hoş geldin.\n\n"
+            "Menüden bir işlem seç.",
+            reply_markup=menu(user_id)
         )
+
         return
 
     kb = types.InlineKeyboardMarkup()
@@ -421,7 +437,7 @@ def start(message):
     kb.add(
         types.InlineKeyboardButton(
             "18+ Onaylıyorum",
-            callback_data="confirm_18",
+            callback_data="confirm_18"
         )
     )
 
@@ -429,7 +445,7 @@ def start(message):
         user_id,
         "Anonim Sohbet Botuna hoş geldin.\n\n"
         "Devam etmek için 18 yaşından büyük olduğunu onayla.",
-        reply_markup=kb,
+        reply_markup=kb
     )
 
 
@@ -437,19 +453,20 @@ def start(message):
     func=lambda call: call.data == "confirm_18"
 )
 def confirm_18(call):
+
     user_id = call.from_user.id
 
     get_user(user_id)["confirmed"] = True
 
     bot.answer_callback_query(
         call.id,
-        "Onaylandı",
+        "Onaylandı"
     )
 
     bot.send_message(
         user_id,
         "Cinsiyetini seç.",
-        reply_markup=gender_keyboard(),
+        reply_markup=gender_keyboard()
     )
 
 
@@ -457,25 +474,26 @@ def confirm_18(call):
     func=lambda call: call.data.startswith("gender_")
 )
 def choose_gender(call):
+
     user_id = call.from_user.id
 
     value = call.data.replace(
         "gender_",
         "",
-        1,
+        1
     )
 
     get_user(user_id)["gender"] = value
 
     bot.answer_callback_query(
         call.id,
-        "Kaydedildi",
+        "Kaydedildi"
     )
 
     bot.send_message(
         user_id,
         "Yaş aralığını seç.",
-        reply_markup=age_keyboard(),
+        reply_markup=age_keyboard()
     )
 
 
@@ -483,38 +501,43 @@ def choose_gender(call):
     func=lambda call: call.data.startswith("age_")
 )
 def choose_age(call):
+
     user_id = call.from_user.id
 
     value = call.data.replace(
         "age_",
         "",
-        1,
+        1
     )
 
     get_user(user_id)["age"] = value
 
     bot.answer_callback_query(
         call.id,
-        "Kaydedildi",
+        "Kaydedildi"
     )
 
     bot.send_message(
         user_id,
         "Profilin hazır.\n\n"
         "Eşleşmek için Eşleş butonuna bas.",
-        reply_markup=menu(user_id),
+        reply_markup=menu(user_id)
     )
 
 
 def show_vip(user_id):
+
     if is_vip(user_id):
+
         if is_admin(user_id):
+
             bot.send_message(
                 user_id,
                 "VIP aktif.\n"
-                "Admin hesabı olduğu için süresiz VIP kullanıyorsun.",
-                reply_markup=vip_menu(),
+                "Admin hesabı olduğu için süresiz VIP.",
+                reply_markup=vip_menu()
             )
+
             return
 
         expires = vip_users[user_id].strftime(
@@ -524,8 +547,9 @@ def show_vip(user_id):
         bot.send_message(
             user_id,
             f"VIP aktif.\nBitiş: {expires}",
-            reply_markup=vip_menu(),
+            reply_markup=vip_menu()
         )
+
         return
 
     bot.send_message(
@@ -534,31 +558,31 @@ def show_vip(user_id):
         "Öncelikli eşleşme\n"
         "Medya gönderme\n"
         "500 ⭐ karşılığında 30 gün",
-        reply_markup=vip_menu(),
+        reply_markup=vip_menu()
     )
 
 
 @bot.message_handler(commands=["vip"])
 def vip_command(message):
-    show_vip(
-        message.from_user.id
-    )
+    show_vip(message.from_user.id)
 
 
 @bot.callback_query_handler(
     func=lambda call: call.data == "buy_vip"
 )
 def buy_vip(call):
+
     user_id = call.from_user.id
 
     if is_admin(user_id):
         bot.answer_callback_query(
             call.id,
-            "Admin zaten süresiz VIP.",
+            "Admin zaten süresiz VIP."
         )
         return
 
     try:
+
         bot.send_invoice(
             user_id,
             "30 Gün VIP",
@@ -569,9 +593,9 @@ def buy_vip(call):
             [
                 types.LabeledPrice(
                     "30 Gün VIP",
-                    VIP_STARS,
+                    VIP_STARS
                 )
-            ],
+            ]
         )
 
         bot.answer_callback_query(
@@ -579,14 +603,15 @@ def buy_vip(call):
         )
 
     except Exception as exc:
+
         bot.answer_callback_query(
             call.id,
-            "Ödeme oluşturulamadı.",
+            "Ödeme oluşturulamadı."
         )
 
         bot.send_message(
             user_id,
-            f"Ödeme hatası: {exc}",
+            f"Ödeme hatası: {exc}"
         )
 
 
@@ -594,9 +619,10 @@ def buy_vip(call):
     func=lambda query: True
 )
 def pre_checkout(pre_checkout_query):
+
     bot.answer_pre_checkout_query(
         pre_checkout_query.id,
-        ok=True,
+        ok=True
     )
 
 
@@ -604,6 +630,7 @@ def pre_checkout(pre_checkout_query):
     content_types=["successful_payment"]
 )
 def successful_payment(message):
+
     user_id = message.from_user.id
 
     vip_users[user_id] = (
@@ -615,7 +642,7 @@ def successful_payment(message):
         user_id,
         "VIP aktif edildi.\n"
         "30 gün boyunca VIP özelliklerini kullanabilirsin.",
-        reply_markup=menu(user_id),
+        reply_markup=menu(user_id)
     )
 
 
@@ -632,15 +659,17 @@ def match_button(message):
     func=lambda message: message.text == "Sonraki"
 )
 def next_button(message):
+
     user_id = message.from_user.id
 
     if user_id in matches:
+
         partner = end_match(user_id)
 
         if partner:
             bot.send_message(
                 partner,
-                "Karşı taraf yeni eşleşmeye geçti.",
+                "Karşı taraf yeni eşleşmeye geçti."
             )
 
     start_matching(user_id)
@@ -650,13 +679,15 @@ def next_button(message):
     func=lambda message: message.text == "Eşleşmeyi Bitir"
 )
 def end_button(message):
+
     user_id = message.from_user.id
+
     partner = end_match(user_id)
 
     if partner:
         bot.send_message(
             partner,
-            "Eşleşme sonlandırıldı.",
+            "Eşleşme sonlandırıldı."
         )
 
     remove_from_waiting(user_id)
@@ -664,7 +695,7 @@ def end_button(message):
     bot.send_message(
         user_id,
         "Eşleşme sonlandırıldı.",
-        reply_markup=menu(user_id),
+        reply_markup=menu(user_id)
     )
 
 
@@ -672,329 +703,5 @@ def end_button(message):
     func=lambda message: message.text == "Engelle"
 )
 def block_button(message):
-    user_id = message.from_user.id
-    partner = matches.get(user_id)
 
-    if not partner:
-        bot.send_message(
-            user_id,
-            "Şu anda eşleştiğin biri yok.",
-        )
-        return
-
-    blocked.setdefault(
-        user_id,
-        set(),
-    ).add(partner)
-
-    end_match(user_id)
-
-    bot.send_message(
-        user_id,
-        "Kullanıcı engellendi.",
-        reply_markup=menu(user_id),
-    )
-
-    bot.send_message(
-        partner,
-        "Eşleşme sonlandırıldı.",
-    )
-
-
-@bot.message_handler(
-    func=lambda message: message.text == "Son Eşleşmem"
-)
-def recover_button(message):
-    user_id = message.from_user.id
-    partner = last_matches.get(user_id)
-
-    if not partner or partner in banned:
-        bot.send_message(
-            user_id,
-            "Kayıtlı son eşleşme bulunamadı.",
-        )
-        return
-
-    if user_id in matches or partner in matches:
-        bot.send_message(
-            user_id,
-            "Şu anda başka bir eşleşme var.",
-        )
-        return
-
-    if is_blocked(user_id, partner):
-        bot.send_message(
-            user_id,
-            "Bu kullanıcı engelli.",
-        )
-        return
-
-    add_match(
-        user_id,
-        partner,
-    )
-
-    bot.send_message(
-        user_id,
-        "Son eşleşmen geri getirildi.",
-    )
-
-    bot.send_message(
-        partner,
-        "Son eşleşmen geri getirildi.",
-    )
-
-
-@bot.message_handler(
-    func=lambda message: message.text == "Genel Sohbet"
-)
-def general_button(message):
-    user_id = message.from_user.id
-
-    if user_id in general_chat:
-        general_chat.remove(user_id)
-
-        bot.send_message(
-            user_id,
-            "Genel sohbetten çıktın.",
-        )
-    else:
-        general_chat.add(user_id)
-
-        bot.send_message(
-            user_id,
-            "Genel sohbete katıldın.",
-        )
-
-
-@bot.message_handler(
-    func=lambda message: message.text == "VIP"
-)
-def vip_button(message):
-    show_vip(
-        message.from_user.id
-    )
-
-
-@bot.message_handler(
-    func=lambda message: message.text == "Davet Et"
-)
-def referral_button(message):
-    referral_info(
-        message.from_user.id
-    )
-
-
-@bot.message_handler(
-    func=lambda message: message.text == "Profil"
-)
-def profile_button(message):
-    user_id = message.from_user.id
-    data = get_user(user_id)
-
-    vip_text = (
-        "Aktif"
-        if is_vip(user_id)
-        else "Pasif"
-    )
-
-    bot.send_message(
-        user_id,
-        f"Profil\n\n"
-        f"Yaş: {data['age']}\n"
-        f"Cinsiyet: {data['gender']}\n"
-        f"VIP: {vip_text}",
-    )
-
-
-@bot.message_handler(
-    func=lambda message: message.text == "Admin Paneli"
-)
-def admin_panel_button(message):
-    if not is_admin(message.from_user.id):
-        return
-
-    bot.send_message(
-        message.from_user.id,
-        "Admin Paneli",
-        reply_markup=admin_menu(),
-    )
-
-
-@bot.callback_query_handler(
-    func=lambda call: call.data == "admin_stats"
-)
-def admin_stats(call):
-    if not is_admin(call.from_user.id):
-        return
-
-    bot.answer_callback_query(
-        call.id
-    )
-
-    vip_count = sum(
-        1
-        for user_id in users
-        if is_vip(user_id)
-    )
-
-    bot.send_message(
-        call.from_user.id,
-        f"İstatistik\n\n"
-        f"Kullanıcı: {len(users)}\n"
-        f"Bekleyen: {len(waiting)}\n"
-        f"Aktif eşleşme: {len(matches) // 2}\n"
-        f"VIP: {vip_count}\n"
-        f"Davet edilen: {len(referrals)}\n"
-        f"Banlı: {len(banned)}",
-    )
-
-
-@bot.callback_query_handler(
-    func=lambda call: call.data == "admin_give_vip"
-)
-def admin_give_vip(call):
-    if not is_admin(call.from_user.id):
-        return
-
-    bot.answer_callback_query(
-        call.id
-    )
-
-    msg = bot.send_message(
-        call.from_user.id,
-        "VIP yapılacak kullanıcının Telegram ID'sini yaz.",
-    )
-
-    bot.register_next_step_handler(
-        msg,
-        process_give_vip,
-    )
-
-
-def process_give_vip(message):
-    if not is_admin(message.from_user.id):
-        return
-
-    try:
-        target = int(
-            message.text.strip()
-        )
-    except ValueError:
-        bot.send_message(
-            message.from_user.id,
-            "Geçerli bir kullanıcı ID'si yaz.",
-        )
-        return
-
-    vip_users[target] = (
-        datetime.now()
-        + timedelta(days=VIP_DAYS)
-    )
-
-    expires = vip_users[target].strftime(
-        "%d.%m.%Y %H:%M"
-    )
-
-    bot.send_message(
-        message.from_user.id,
-        f"Kullanıcı VIP yapıldı.\n\n"
-        f"ID: {target}\n"
-        f"Bitiş: {expires}",
-    )
-
-    try:
-        bot.send_message(
-            target,
-            f"Yönetici tarafından VIP yapıldın.\n"
-            f"VIP bitiş tarihi: {expires}",
-            reply_markup=menu(target),
-        )
-    except Exception:
-        pass
-
-
-@bot.callback_query_handler(
-    func=lambda call: call.data == "admin_announce"
-)
-def admin_announce(call):
-    if not is_admin(call.from_user.id):
-        return
-
-    bot.answer_callback_query(
-        call.id
-    )
-
-    msg = bot.send_message(
-        call.from_user.id,
-        "Duyuru metnini yaz.",
-    )
-
-    bot.register_next_step_handler(
-        msg,
-        process_announcement,
-    )
-
-
-def process_announcement(message):
-    if not is_admin(message.from_user.id):
-        return
-
-    sent = 0
-
-    for user_id in list(users):
-        try:
-            bot.send_message(
-                user_id,
-                f"Yönetici duyurusu\n\n{message.text}",
-            )
-            sent += 1
-        except Exception:
-            pass
-
-    bot.send_message(
-        message.from_user.id,
-        f"Duyuru gönderildi: {sent}",
-    )
-
-
-@bot.callback_query_handler(
-    func=lambda call: call.data == "admin_ban"
-)
-def admin_ban(call):
-    if not is_admin(call.from_user.id):
-        return
-
-    bot.answer_callback_query(
-        call.id
-    )
-
-    msg = bot.send_message(
-        call.from_user.id,
-        "Banlanacak kullanıcı ID'sini yaz.",
-    )
-
-    bot.register_next_step_handler(
-        msg,
-        process_ban,
-    )
-
-
-def process_ban(message):
-    if not is_admin(message.from_user.id):
-        return
-
-    try:
-        target = int(
-            message.text.strip()
-        )
-    except ValueError:
-        bot.send_message(
-            message.from_user.id,
-            "Geçerli bir kullanıcı ID'si yaz.",
-        )
-        return
-
-    banned.add(target)
-    end_match(target)
-    remove_from
+    user_id = message.from_user
