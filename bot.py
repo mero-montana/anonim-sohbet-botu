@@ -357,6 +357,12 @@ def confirm_18(call):
 def choose_gender(call):
     user_id = call.from_user.id
 
-    value
+    print("Bot çalışıyor...")
+
+bot.infinity_polling(
+    skip_pending=True,
+    timeout=30,
+    long_polling_timeout=30
+)
     
 
