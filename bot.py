@@ -10,7 +10,7 @@ ADMIN_ID = int(os.getenv("ADMIN_ID", "8536869508"))
 if not TOKEN:
     raise RuntimeError("BOT_TOKEN bulunamadi")
 
-bot = telebot.TeleBot(TOKEN, parse_mode=None)
+bot = telebot.TeleBot(TOKEN)
 
 users = {}
 waiting = []
@@ -21,7 +21,6 @@ banned = set()
 muted = set()
 vip_users = {}
 general_chat = set()
-
 referrals = {}
 referral_rewards = set()
 
@@ -57,9 +56,7 @@ def get_user(user_id):
             "age": None,
             "gender": None,
             "confirmed": False,
-            "general": False,
         }
-
     return users[user_id]
 
 
@@ -87,7 +84,6 @@ def end_match(user_id):
 def add_match(a, b):
     remove_from_waiting(a)
     remove_from_waiting(b)
-
     matches[a] = b
     matches[b] = a
 
@@ -209,7 +205,6 @@ def admin_menu():
 
 def find_partner(user_id):
     me = get_user(user_id)
-
     candidates = list(waiting)
 
     if is_vip(user_id):
@@ -268,7 +263,6 @@ def start_matching(user_id):
         return
 
     remove_from_waiting(user_id)
-
     partner = find_partner(user_id)
 
     if partner is None:
@@ -278,7 +272,6 @@ def start_matching(user_id):
             user_id,
             "Eşleşme aranıyor...",
         )
-
         return
 
     add_match(user_id, partner)
@@ -294,7 +287,7 @@ def start_matching(user_id):
     )
 
 
-def send_general_message(sender_id, message):
+def send_general_text(sender_id, message_text):
     for user_id in list(general_chat):
         if user_id == sender_id:
             continue
@@ -305,7 +298,7 @@ def send_general_message(sender_id, message):
         try:
             bot.send_message(
                 user_id,
-                message,
+                message_text,
             )
         except Exception:
             pass
@@ -337,13 +330,16 @@ def add_referral(new_user_id, inviter_id):
                 + timedelta(days=REFERRAL_VIP_DAYS)
             )
 
-            bot.send_message(
-                inviter_id,
-                "🎉 Tebrikler!\n\n"
-                "10 kişi davet ettin.\n"
-                "7 günlük VIP ödülün otomatik olarak aktif edildi.",
-                reply_markup=menu(inviter_id),
-            )
+            try:
+                bot.send_message(
+                    inviter_id,
+                    "Tebrikler!\n\n"
+                    "10 kişi davet ettin.\n"
+                    "7 günlük VIP ödülün aktif edildi.",
+                    reply_markup=menu(inviter_id),
+                )
+            except Exception:
+                pass
 
 
 def referral_info(user_id):
@@ -358,36 +354,27 @@ def referral_info(user_id):
     )
 
     try:
-        bot_info = bot.get_me()
-        username = bot_info.username
+        username = bot.get_me().username
 
         link = (
-            "https://t.me/"
-            + username
-            + "?start=ref_"
-            + str(user_id)
+            f"https://t.me/{username}"
+            f"?start=ref_{user_id}"
         )
 
         bot.send_message(
             user_id,
-            "🎁 DAVET SİSTEMİ\n\n"
+            "DAVET SİSTEMİ\n\n"
             "Arkadaşlarını davet et.\n"
             "10 yeni kişi bota katılırsa 7 gün VIP kazanırsın.\n\n"
-            "Davet edilen kişi: "
-            + str(count)
-            + "\n"
-            "Kalan: "
-            + str(remaining)
-            + "\n\n"
-            "Davet linkin:\n"
-            + link,
+            f"Davet edilen kişi: {count}\n"
+            f"Kalan: {remaining}\n\n"
+            f"Davet linkin:\n{link}",
         )
 
     except Exception as exc:
         bot.send_message(
             user_id,
-            "Davet linki oluşturulamadı.\n"
-            + str(exc),
+            f"Davet linki oluşturulamadı.\n{exc}",
         )
 
 
@@ -403,29 +390,19 @@ def start(message):
         return
 
     is_new_user = user_id not in users
-
     referral_id = None
-
     parts = message.text.split()
 
     if len(parts) > 1:
-        start_parameter = parts[1]
-
-        if start_parameter.startswith("ref_"):
+        if parts[1].startswith("ref_"):
             try:
-                referral_id = int(
-                    start_parameter.replace(
-                        "ref_",
-                        "",
-                        1,
-                    )
-                )
+                referral_id = int(parts[1][4:])
             except ValueError:
                 referral_id = None
 
     get_user(user_id)
 
-    if is_new_user and referral_id:
+    if is_new_user and referral_id is not None:
         add_referral(
             user_id,
             referral_id,
@@ -529,17 +506,12 @@ def choose_age(call):
     )
 
 
-@bot.message_handler(commands=["vip"])
-def vip_command(message):
-    show_vip(message.chat.id)
-
-
 def show_vip(user_id):
     if is_vip(user_id):
         if is_admin(user_id):
             bot.send_message(
                 user_id,
-                "⭐ VIP aktif.\n"
+                "VIP aktif.\n"
                 "Admin hesabı olduğu için süresiz VIP kullanıyorsun.",
                 reply_markup=vip_menu(),
             )
@@ -551,21 +523,26 @@ def show_vip(user_id):
 
         bot.send_message(
             user_id,
-            "VIP aktif.\n"
-            "Bitiş: " + expires,
+            f"VIP aktif.\nBitiş: {expires}",
             reply_markup=vip_menu(),
         )
-    else:
-        bot.send_message(
-            user_id,
-            "VIP özellikleri\n\n"
-            "Öncelikli eşleşme\n"
-            "VIP rozet\n"
-            "VIP oda\n"
-            "Medya gönderme\n"
-            "500 ⭐ karşılığında 30 gün",
-            reply_markup=vip_menu(),
-        )
+        return
+
+    bot.send_message(
+        user_id,
+        "VIP özellikleri\n\n"
+        "Öncelikli eşleşme\n"
+        "Medya gönderme\n"
+        "500 ⭐ karşılığında 30 gün",
+        reply_markup=vip_menu(),
+    )
+
+
+@bot.message_handler(commands=["vip"])
+def vip_command(message):
+    show_vip(
+        message.from_user.id
+    )
 
 
 @bot.callback_query_handler(
@@ -597,17 +574,19 @@ def buy_vip(call):
             ],
         )
 
-        bot.answer_callback_query(call.id)
+        bot.answer_callback_query(
+            call.id
+        )
 
     except Exception as exc:
         bot.answer_callback_query(
             call.id,
-            "Ödeme oluşturulamadı",
+            "Ödeme oluşturulamadı.",
         )
 
         bot.send_message(
             user_id,
-            "Ödeme hatası: " + str(exc),
+            f"Ödeme hatası: {exc}",
         )
 
 
@@ -672,7 +651,6 @@ def next_button(message):
 )
 def end_button(message):
     user_id = message.from_user.id
-
     partner = end_match(user_id)
 
     if partner:
@@ -681,19 +659,13 @@ def end_button(message):
             "Eşleşme sonlandırıldı.",
         )
 
-        bot.send_message(
-            user_id,
-            "Eşleşme sonlandırıldı.",
-            reply_markup=menu(user_id),
-        )
-    else:
-        remove_from_waiting(user_id)
+    remove_from_waiting(user_id)
 
-        bot.send_message(
-            user_id,
-            "Aktif eşleşmen yok.",
-            reply_markup=menu(user_id),
-        )
+    bot.send_message(
+        user_id,
+        "Eşleşme sonlandırıldı.",
+        reply_markup=menu(user_id),
+    )
 
 
 @bot.message_handler(
@@ -828,10 +800,10 @@ def profile_button(message):
 
     bot.send_message(
         user_id,
-        "Profil\n\n"
-        "Yaş: " + str(data["age"]) + "\n"
-        "Cinsiyet: " + str(data["gender"]) + "\n"
-        "VIP: " + vip_text,
+        f"Profil\n\n"
+        f"Yaş: {data['age']}\n"
+        f"Cinsiyet: {data['gender']}\n"
+        f"VIP: {vip_text}",
     )
 
 
@@ -856,24 +828,25 @@ def admin_stats(call):
     if not is_admin(call.from_user.id):
         return
 
-    bot.answer_callback_query(call.id)
+    bot.answer_callback_query(
+        call.id
+    )
 
     vip_count = sum(
-        1 for user_id in users
+        1
+        for user_id in users
         if is_vip(user_id)
     )
 
-    referral_count = len(referrals)
-
     bot.send_message(
         call.from_user.id,
-        "İstatistik\n\n"
-        "Kullanıcı: " + str(len(users)) + "\n"
-        "Bekleyen: " + str(len(waiting)) + "\n"
-        "Aktif eşleşme: " + str(len(matches) // 2) + "\n"
-        "VIP: " + str(vip_count) + "\n"
-        "Davet edilen: " + str(referral_count) + "\n"
-        "Banlı: " + str(len(banned)),
+        f"İstatistik\n\n"
+        f"Kullanıcı: {len(users)}\n"
+        f"Bekleyen: {len(waiting)}\n"
+        f"Aktif eşleşme: {len(matches) // 2}\n"
+        f"VIP: {vip_count}\n"
+        f"Davet edilen: {len(referrals)}\n"
+        f"Banlı: {len(banned)}",
     )
 
 
@@ -884,7 +857,9 @@ def admin_give_vip(call):
     if not is_admin(call.from_user.id):
         return
 
-    bot.answer_callback_query(call.id)
+    bot.answer_callback_query(
+        call.id
+    )
 
     msg = bot.send_message(
         call.from_user.id,
@@ -902,39 +877,41 @@ def process_give_vip(message):
         return
 
     try:
-        target = int(message.text.strip())
-
-        vip_users[target] = (
-            datetime.now()
-            + timedelta(days=VIP_DAYS)
+        target = int(
+            message.text.strip()
         )
-
-        expires = vip_users[target].strftime(
-            "%d.%m.%Y %H:%M"
-        )
-
-        bot.send_message(
-            message.from_user.id,
-            "Kullanıcı VIP yapıldı.\n\n"
-            "ID: " + str(target) + "\n"
-            "Bitiş: " + expires,
-        )
-
-        try:
-            bot.send_message(
-                target,
-                "Yönetici tarafından VIP yapıldın.\n"
-                "VIP bitiş tarihi: " + expires,
-                reply_markup=menu(target),
-            )
-        except Exception:
-            pass
-
     except ValueError:
         bot.send_message(
             message.from_user.id,
             "Geçerli bir kullanıcı ID'si yaz.",
         )
+        return
+
+    vip_users[target] = (
+        datetime.now()
+        + timedelta(days=VIP_DAYS)
+    )
+
+    expires = vip_users[target].strftime(
+        "%d.%m.%Y %H:%M"
+    )
+
+    bot.send_message(
+        message.from_user.id,
+        f"Kullanıcı VIP yapıldı.\n\n"
+        f"ID: {target}\n"
+        f"Bitiş: {expires}",
+    )
+
+    try:
+        bot.send_message(
+            target,
+            f"Yönetici tarafından VIP yapıldın.\n"
+            f"VIP bitiş tarihi: {expires}",
+            reply_markup=menu(target),
+        )
+    except Exception:
+        pass
 
 
 @bot.callback_query_handler(
@@ -944,7 +921,9 @@ def admin_announce(call):
     if not is_admin(call.from_user.id):
         return
 
-    bot.answer_callback_query(call.id)
+    bot.answer_callback_query(
+        call.id
+    )
 
     msg = bot.send_message(
         call.from_user.id,
@@ -967,8 +946,7 @@ def process_announcement(message):
         try:
             bot.send_message(
                 user_id,
-                "Yönetici duyurusu\n\n"
-                + message.text,
+                f"Yönetici duyurusu\n\n{message.text}",
             )
             sent += 1
         except Exception:
@@ -976,11 +954,47 @@ def process_announcement(message):
 
     bot.send_message(
         message.from_user.id,
-        "Duyuru gönderildi: " + str(sent),
+        f"Duyuru gönderildi: {sent}",
     )
 
 
 @bot.callback_query_handler(
     func=lambda call: call.data == "admin_ban"
 )
-def admin
+def admin_ban(call):
+    if not is_admin(call.from_user.id):
+        return
+
+    bot.answer_callback_query(
+        call.id
+    )
+
+    msg = bot.send_message(
+        call.from_user.id,
+        "Banlanacak kullanıcı ID'sini yaz.",
+    )
+
+    bot.register_next_step_handler(
+        msg,
+        process_ban,
+    )
+
+
+def process_ban(message):
+    if not is_admin(message.from_user.id):
+        return
+
+    try:
+        target = int(
+            message.text.strip()
+        )
+    except ValueError:
+        bot.send_message(
+            message.from_user.id,
+            "Geçerli bir kullanıcı ID'si yaz.",
+        )
+        return
+
+    banned.add(target)
+    end_match(target)
+    remove_from
