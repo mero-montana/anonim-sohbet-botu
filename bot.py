@@ -988,5 +988,29 @@ def process_ban(message):
         pass
 
 
-@bot.callback_query_handler(
+@bot.callback_query_handler( @bot.callback_query_handler(
+    func=lambda call: call.data == "admin_stats"
+)
+def admin_stats(call):
+    if not is_admin(call.from_user.id):
+        return
+
+    bot.answer_callback_query(call.id)
+
+    vip_count = sum(
+        1
+        for user_id in users
+        if is_vip(user_id)
+    )
+
+    bot.send_message(
+        call.from_user.id,
+        f"İstatistik\n\n"
+        f"Kullanıcı: {len(users)}\n"
+        f"Bekleyen: {len(waiting)}\n"
+        f"Aktif eşleşme: {len(matches) // 2}\n"
+        f"VIP: {vip_count}\n"
+        f"Davet edilen: {len(referrals)}\n"
+        f"Banlı: {len(banned)}"
+    )
     func=lambda call
